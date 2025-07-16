@@ -80,7 +80,7 @@ runs:
           generateResolvConf=true
 
     - name: 🐳 Install Docker in WSL
-      if: runner.os == 'Windows' && runner.arch == 'X64'
+      if: runner.os == 'Windows'
       shell: wsl-bash {0}
       run: |
         echo "🔄 Updating package index..."
@@ -133,12 +133,11 @@ runs:
       run: |
         case "${{ runner.os }}" in
           "Windows")
-            if [[ "${{ runner.arch }}" == "X64" ]]; then
-              docker_host="tcp://localhost:2375"
-              echo "DOCKER_HOST=${docker_host}" >> $GITHUB_ENV
-              echo "docker-host=${docker_host}" >> $GITHUB_OUTPUT
-              echo "🌐 DOCKER_HOST set to: ${docker_host}"
-            fi
+            docker_host="tcp://localhost:2375"
+            setx DOCKER_HOST "tcp://localhost:2375"
+            echo "DOCKER_HOST=${docker_host}" >> $GITHUB_ENV
+            echo "docker-host=${docker_host}" >> $GITHUB_OUTPUT
+            echo "🌐 DOCKER_HOST set to: ${docker_host}"
             ;;
           "macOS"|"Linux")
             docker_host="unix:///var/run/docker.sock"
