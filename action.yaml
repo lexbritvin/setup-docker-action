@@ -1,0 +1,164 @@
+name: 'Setup Docker Cross-platform'
+description: 'Installs Docker in Windows WSL and macOS Colima'
+
+branding:
+  icon: 'box'
+  color: 'blue'
+
+outputs:
+  docker-host:
+    description: 'Docker host connection string'
+    value: ${{ steps.set-docker-host.outputs.docker-host }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check Platform Support
+      id: check-support
+      shell: bash
+      run: |
+        echo "🔍 Checking platform support..."
+        echo "🖥️  OS: ${{ runner.os }}"
+        echo "🏗️  Architecture: ${{ runner.arch }}"
+        
+        # Check if platform is supported
+        case "${{ runner.os }}-${{ runner.arch }}" in
+          "macOS-X64")
+            echo "✅ macOS x86_64 is supported"
+            ;;
+          "macOS-ARM64")
+            echo "❌ macOS ARM64 is not supported"
+            exit 1
+            ;;
+          "Windows-X64")
+            echo "✅ Windows x86_64 is supported"
+            ;;
+          "Windows-ARM64")
+            echo "❌ Windows ARM64 is not supported"
+            exit 1
+            ;;
+          *)
+            echo "❌ Platform ${{ runner.os }}-${{ runner.arch }} is not supported"
+            exit 1
+            ;;
+        esac
+
+    # macOS x86_64 - Use docker/setup-docker-action
+    - name: 🍎 Install Docker on macOS x86_64
+      if: runner.os == 'macOS' && runner.arch == 'X64'
+      uses: docker/setup-docker-action@v4
+
+    # macOS ARM64 - Fail with error
+    - name: ❌ macOS ARM64 not supported
+      if: runner.os == 'macOS' && runner.arch == 'ARM64'
+      shell: bash
+      run: |
+        echo "❌ ERROR: macOS ARM64 is not supported for Docker installation"
+        echo "🚫 Please use a different platform or consider using Docker Desktop manually"
+        echo "💡 Supported platforms: macOS x86_64, Windows x86_64"
+        exit 1
+
+    # Windows x86_64 - Setup WSL and install Docker
+    - name: 🪟 Setup WSL for Windows x86_64
+      if: runner.os == 'Windows' && runner.arch == 'X64'
+      uses: Vampire/setup-wsl@v6
+      with:
+        distribution: Ubuntu-24.04
+        wsl-shell-user: ubuntu
+        wsl-conf: |
+          [boot]
+          systemd=true
+          
+          [interop]
+          enabled=true
+          appendWindowsPath=true
+          
+          [network]
+          generateResolvConf=true
+
+    - name: 🐳 Install Docker in WSL
+      if: runner.os == 'Windows' && runner.arch == 'X64'
+      shell: wsl-bash {0}
+      run: |
+        echo "🔄 Updating package index..."
+        sudo apt-get update
+        
+        echo "📦 Installing required packages..."
+        sudo apt-get install -y ca-certificates curl gnupg lsb-release
+        
+        echo "🔑 Adding Docker GPG key..."
+        sudo mkdir -p /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        
+        echo "📋 Adding Docker repository..."
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        
+        echo "🔄 Updating package index with Docker repo..."
+        sudo apt-get update
+        
+        echo "🐳 Installing Docker..."
+        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        
+        echo "🔧 Configuring Docker daemon..."
+        sudo mkdir -p /etc/docker
+        sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+        {
+          "hosts": ["unix:///var/run/docker.sock", "tcp://0.0.0.0:2375"],
+          "tls": false,
+          "experimental": true
+        }
+        EOF
+        
+        echo "🚀 Starting Docker service..."
+        sudo systemctl enable docker
+        sudo systemctl start docker
+        
+        echo "👤 Adding user to docker group..."
+        sudo usermod -aG docker ubuntu
+        
+        echo "✅ Docker installation completed!"
+        
+        # Test Docker installation
+        echo "🧪 Testing Docker installation..."
+        sudo docker --version
+        sudo docker info
+
+    # Set Docker Host environment variable
+    - name: 🔧 Set Docker Host
+      id: set-docker-host
+      shell: bash
+      run: |
+        case "${{ runner.os }}" in
+          "Windows")
+            if [[ "${{ runner.arch }}" == "X64" ]]; then
+              docker_host="tcp://localhost:2375"
+              echo "DOCKER_HOST=${docker_host}" >> $GITHUB_ENV
+              echo "docker-host=${docker_host}" >> $GITHUB_OUTPUT
+              echo "🌐 DOCKER_HOST set to: ${docker_host}"
+            fi
+            ;;
+          "macOS"|"Linux")
+            docker_host="unix:///var/run/docker.sock"
+            echo "docker-host=${docker_host}" >> $GITHUB_OUTPUT
+            echo "🌐 DOCKER_HOST using default: ${docker_host}"
+            ;;
+        esac
+
+    # Test Docker installation (except for unsupported platforms)
+    - name: 🧪 Test Docker Installation
+      if: steps.check-support.outputs.supported == 'true'
+      shell: bash
+      run: |
+        echo "🧪 Testing Docker installation..."
+        
+        # For Windows, test via WSL
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          echo "🪟 Testing Docker in WSL..."
+          wsl -d Ubuntu-24.04 -u ubuntu -- docker --version
+          echo "✅ Docker is working in WSL!"
+        else
+          echo "🐳 Testing Docker directly..."
+          docker --version
+          docker info
+          echo "✅ Docker is working!"
+        fi
