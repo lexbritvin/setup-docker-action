@@ -48,7 +48,7 @@ runs:
       if: runner.os == 'macOS'
       uses: docker/setup-docker-action@v4
       env:
-        LIMA_START_ARGS: --vm-type=vz --mount-type=virtiofs
+        LIMA_START_ARGS: --mount-type=9p
 
     # Windows - Setup WSL and install Docker
     - name: 🪟 Setup WSL for Windows
