@@ -44,11 +44,22 @@ runs:
         esac
 
     # macOS - Use docker/setup-docker-action
-    - name: 🍎 Install Docker on macOS x86_64
+    - name: 🍎 Install Docker on macOS
       if: runner.os == 'macOS'
       uses: docker/setup-docker-action@v4
-      env:
-        LIMA_START_ARGS: --mount-type=9p
+
+    - name: 🔗 Ensure Docker is available in /usr/local/bin on macOS
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        echo "🔗 Ensuring Docker is available in /usr/local/bin..."
+        if [[ ! -e "/usr/local/bin/docker" ]]; then
+          echo "Creating Docker symlink for persistent access..."
+          sudo ln -s $(which docker) /usr/local/bin/docker
+          echo "✅ Docker symlink created: /usr/local/bin/docker -> $(which docker)"
+        else
+          echo "ℹ️ Docker already available at /usr/local/bin/docker"
+        fi
 
     # Windows - Setup WSL and install Docker
     - name: 🪟 Setup WSL for Windows
