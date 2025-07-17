@@ -127,8 +127,8 @@ runs:
         
         # Test Docker installation
         echo "🧪 Testing Docker installation..."
-        docker --version
-        docker info
+        sudo docker --version
+        sudo docker info
 
         echo "🌐 Testing both Unix and TCP sockets..."
         curl -s http://localhost:2375/version || echo "TCP socket not ready yet"
