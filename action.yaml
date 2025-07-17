@@ -106,7 +106,7 @@ runs:
         sudo mkdir -p /etc/systemd/system/docker.socket.d
         sudo tee /etc/systemd/system/docker.socket.d/tcp-listen.conf > /dev/null <<EOF
         [Socket]
-        ListenStream=2375
+        ListenStream=0.0.0.0:2375
         EOF
         
         echo "🚀 Starting Docker services..."
@@ -172,9 +172,3 @@ runs:
           echo "🔍 Docker binary location: $(which docker)"
           echo "✅ Docker is working!"
         fi
-
-    - name: Setup tmate session
-      if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
-      with:
-        limit-access-to-actor: true
