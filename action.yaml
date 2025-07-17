@@ -102,18 +102,24 @@ runs:
         echo "🐳 Installing Docker..."
         sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
         
-        echo "🔧 Configuring Docker daemon..."
-        sudo mkdir -p /etc/docker
-        sudo tee /etc/docker/daemon.json > /dev/null <<EOF
-        {
-          "hosts": ["unix:///var/run/docker.sock", "tcp://0.0.0.0:2375"],
-          "tls": false,
-          "experimental": true
-        }
+        echo "🔧 Extending docker.socket to support TCP..."
+        sudo mkdir -p /etc/systemd/system/docker.socket.d
+        sudo tee /etc/systemd/system/docker.socket.d/tcp-listen.conf > /dev/null <<EOF
+        [Socket]
+        ListenStream=2375
         EOF
         
-        echo "🚀 Starting Docker service..."
+        echo "🚀 Starting Docker services..."
+        sudo systemctl daemon-reload
+        
+        # Stop services to apply changes
+        sudo systemctl stop docker || true
+        sudo systemctl stop docker.socket || true
+        
+        # Enable and start services
+        sudo systemctl enable docker.socket
         sudo systemctl enable docker
+        sudo systemctl start docker.socket
         sudo systemctl start docker
         
         echo "👤 Adding user to docker group..."
@@ -125,6 +131,15 @@ runs:
         echo "🧪 Testing Docker installation..."
         sudo docker --version
         sudo docker info
+        
+        echo "🔍 Checking socket configuration..."
+        sudo systemctl status docker.socket --no-pager
+        sudo systemctl status docker --no-pager
+        
+        echo "🌐 Testing both Unix and TCP sockets..."
+        sleep 2  # Give services time to fully start
+        docker version  # Test Unix socket
+        curl -s http://localhost:2375/version || echo "TCP socket not ready yet"
 
     # Set Docker Host environment variable
     - name: 🔧 Set Docker Host
