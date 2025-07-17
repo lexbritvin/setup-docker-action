@@ -116,9 +116,7 @@ runs:
         sudo systemctl stop docker || true
         sudo systemctl stop docker.socket || true
         
-        # Enable and start services
-        sudo systemctl enable docker.socket
-        sudo systemctl enable docker
+        # Start services
         sudo systemctl start docker.socket
         sudo systemctl start docker
         
@@ -129,16 +127,10 @@ runs:
         
         # Test Docker installation
         echo "🧪 Testing Docker installation..."
-        sudo docker --version
-        sudo docker info
-        
-        echo "🔍 Checking socket configuration..."
-        sudo systemctl status docker.socket --no-pager
-        sudo systemctl status docker --no-pager
-        
+        docker --version
+        docker info
+
         echo "🌐 Testing both Unix and TCP sockets..."
-        sleep 2  # Give services time to fully start
-        docker version  # Test Unix socket
         curl -s http://localhost:2375/version || echo "TCP socket not ready yet"
 
     # Set Docker Host environment variable
