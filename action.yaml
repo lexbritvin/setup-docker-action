@@ -46,7 +46,10 @@ runs:
     # macOS - Use docker/setup-docker-action
     - name: 🍎 Install Docker on macOS
       if: runner.os == 'macOS'
+      id: macos-docker
       uses: docker/setup-docker-action@v4
+      with:
+        set-host: true
 
     - name: 🔗 Ensure Docker is available in /usr/local/bin on macOS
       if: runner.os == 'macOS'
@@ -146,7 +149,12 @@ runs:
             echo "docker-host=${docker_host}" >> $GITHUB_OUTPUT
             echo "🌐 DOCKER_HOST set to: ${docker_host}"
             ;;
-          "macOS"|"Linux")
+          "macOS")
+            docker_host="${{ steps.macos-docker.outputs.sock }}"
+            echo "docker-host=${docker_host}" >> $GITHUB_OUTPUT
+            echo "🌐 DOCKER_HOST set to: ${docker_host}"
+            ;;
+          "Linux")
             docker_host="unix:///var/run/docker.sock"
             echo "docker-host=${docker_host}" >> $GITHUB_OUTPUT
             echo "🌐 DOCKER_HOST using default: ${docker_host}"
