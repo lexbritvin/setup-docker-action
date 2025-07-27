@@ -43,6 +43,39 @@ runs:
             ;;
         esac
 
+    # macOS - Configure Lima before Docker installation
+    - name: 🍎 Configure Lima for macOS
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        echo "⚙️ Configuring Lima for macOS..."
+        
+        # Create Lima config directory
+        mkdir -p ~/.lima/_config
+        
+        # Create override.yaml with mount configuration
+        cat > ~/.lima/_config/override.yaml <<EOF
+        mountType: 9p
+        mounts:
+          - location: "/Users/$USER"
+            writable: true
+            9p:
+              securityModel: mapped-xattr
+              cache: mmap
+          - location: "~"
+            writable: true
+            9p:
+              securityModel: mapped-xattr
+              cache: mmap
+          - location: /tmp/colima
+            writable: true
+            9p:
+              securityModel: mapped-xattr
+              cache: mmap
+        EOF
+        
+        echo "✅ Lima configuration created at ~/.lima/_config/override.yaml"
+
     # macOS - Use docker/setup-docker-action
     - name: 🍎 Install Docker on macOS
       if: runner.os == 'macOS'
@@ -50,6 +83,8 @@ runs:
       uses: docker/setup-docker-action@v4
       with:
         set-host: true
+      env:
+        LIMA_START_ARGS: --mount-type 9p # TODO: Review that when arm64 is available and use virtiofs.
 
     - name: 🔗 Ensure Docker is available in /usr/local/bin on macOS
       if: runner.os == 'macOS'
